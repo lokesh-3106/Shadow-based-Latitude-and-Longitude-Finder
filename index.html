@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Shadow-based Latitude & Longitude Finder</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&family=Roboto:wght@400;500&display=swap" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="header">
+    <div class="branding">
+      <h2>Shadow-based Latitude & Longitude Finder</h2>
+      <p class="tagline">Discover Your Location with Shadows by Lokeshwaran</p>
+    </div>
+    <button class="about-button" onclick="showAbout()">About</button>
+  </div>
+  <p>Enter the local solar noon time and UTC offset for your location. Calculations use simplified astronomical models.</p>
+
+  <div class="input-group">
+    <label for="stickHeight">Stick Height (cm):</label>
+    <input type="number" id="stickHeight" step="0.1" min="0.1" placeholder="e.g., 100">
+  </div>
+  <div class="input-group">
+    <label for="shadowLength">Shadow Length (cm):</label>
+    <input type="number" id="shadowLength" step="0.1" min="0" placeholder="e.g., 50">
+  </div>
+  <div class="input-group">
+    <label for="date">Date (YYYY-MM-DD):</label>
+    <input type="date" id="date">
+  </div>
+  <div class="input-group">
+    <label for="solarNoon">Local Solar Noon Time (HH:MM):</label>
+    <input type="time" id="solarNoon">
+  </div>
+  <div class="input-group">
+    <label for="utcOffset">UTC Offset (hours):</label>
+    <input type="number" id="utcOffset" step="0.25" placeholder="e.g., 5.5 for IST">
+  </div>
+
+  <button onclick="calculateCoordinates()">Calculate</button>
+
+  <div class="results-section">
+    <h3>Results</h3>
+    <div class="result-item" id="zeroShadowDay">
+      <span class="result-description">Indicates if it's a Zero Shadow Day (shadow length = 0)</span>
+    </div>
+    <div class="result-item" id="solarElevation">
+      <span class="result-description">Solar elevation angle (height of sun above horizon)</span>
+    </div>
+    <div class="result-item" id="solarDeclination">
+      <span class="result-description">Solar declination (sun's angular position north/south of celestial equator)</span>
+    </div>
+    <div class="result-item" id="latitude">
+      <span class="result-description">Calculated geographical latitude</span>
+    </div>
+    <div class="result-item" id="longitude">
+      <span class="result-description">Calculated geographical longitude (based on solar noon time)</span>
+    </div>
+    <div class="result-item" id="locationName">
+      <span class="result-description">Location name based on coordinates</span>
+    </div>
+  </div>
+
+  <p class="map-caption">Location based on Latitude and Longitude</p>
+  <div id="map"></div>
+  
+
+  <h2>📏 Enter Shadow Lengths with Custom Time Intervals</h2>
+  <div id="input-container">
+    <div class="input-row">
+      <input type="time" class="time-input">
+      <input type="number" class="shadow-input" placeholder="Shadow Length (cm)">
+    </div>
+  </div>
+  <button onclick="addRow()">+ Add Row</button>
+  <button onclick="plotRealGraph()">📈 Plot Graph</button>
+  <canvas id="realDataChart" width="600" height="300"></canvas>
+
+  <footer>
+    <p>Created by Lokeshwaran &copy; 2025. All rights reserved.</p>
+    <p>Contact: <a href="mailto:pro.lokesh3103@gmail.com">pro.lokesh3103@gmail.com</a> | 
+       <a href="https://github.com/yourusername">GitHub</a> | 
+       <a href="https://www.linkedin.com/in/lokeshwaran31">LinkedIn</a></p>
+    <p>Version 1.0, August 2025</p>
+  </footer>
+
+  <!-- About Modal -->
+  <div id="aboutModal" class="modal">
+    <div class="modal-content">
+      <span class="close-button" onclick="hideAbout()">&times;</span>
+      <h3>About Shadow-based Latitude & Longitude Finder</h3>
+      <p>This web application calculates your geographical latitude and longitude using the shadow of a vertical stick and the local solar noon time.</p>
+      <h4>About the Creator</h4>
+      <p>Hi! I'm Lokeshwaran, a passionate developer and a Physics student from India. I created this tool to help users explore geographical coordinates using the power of shadows.</p>
+      <h4>How It Works:</h4>
+      <ul>
+        <li><strong>Stick Height and Shadow Length:</strong> These are used to calculate the solar elevation angle (the sun's height above the horizon). The angle is found using the arctangent of the ratio of stick height to shadow length (arctan(height/length)).</li>
+        <li><strong>Date:</strong> The date determines the day of the year, which is used to calculate the solar declination (the sun's angular position north or south of the celestial equator) using the formula: 23.44 * sin((360/365) * (day - 81)).</li>
+        <li><strong>Solar Noon Time and UTC Offset:</strong> These help calculate the longitude. Solar noon is when the sun is at its highest point (typically around 12:00). The difference between local solar noon time and 12:00, adjusted by the UTC offset, is used to compute longitude with the formula: longitude = (12 - localTime) * 15 + (utcOffset * 15).</li>
+        <li><strong>Latitude Calculation:</strong> Latitude is derived from the solar declination and solar elevation angle. If the shadow length is zero (Zero Shadow Day), latitude equals the declination, as the sun is directly overhead (solar elevation = 90°). Otherwise, latitude is calculated as declination ± (90 - solarElevation), selecting the valid option within -90° to 90°.</li>
+        <li><strong>Location Name:</strong> The calculated coordinates are sent to the OpenStreetMap Nominatim API to fetch the approximate location name, displayed on the map and in the results.</li>
+      </ul>
+      <p>This tool uses simplified astronomical models and assumes accurate input values for best results. Enjoy exploring your location with the power of shadows!</p>
+      <p>&copy; 2025 Lokeshwaran. All rights reserved.</p>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
