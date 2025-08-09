@@ -226,6 +226,7 @@ button:not(.about-button) {
   border-radius: 8px;
   cursor: pointer;
   transition: background-color 0.2s, transform 0.1s, box-shadow 0.2s;
+  margin: 5px;
 }
 
 button:not(.about-button):hover {

@@ -1,4 +1,5 @@
 let map = null;
+let latestResults = null; // Store latest calculation results
 
 function toRadians(degrees) {
   return degrees * (Math.PI / 180);
@@ -34,22 +35,29 @@ async function getLocationName(latitude, longitude) {
 }
 
 async function initializeMap(latitude, longitude) {
-  if (map) {
-    map.remove();
+  try {
+    // Initialize Leaflet map
+    map = L.map('map').setView([latitude, longitude], 10);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+    }).addTo(map);
+
+    const locationName = await getLocationName(latitude, longitude);
+    const marker = L.marker([latitude, longitude]).addTo(map);
+    marker.bindPopup(`Calculated Location: ${locationName}`).openPopup();
+
+    document.getElementById("locationName").innerHTML = `
+      <strong>Location Name: ${locationName}</strong>
+      <span class="result-description">Location name based on coordinates</span>
+    `;
+    // Store location name in results
+    if (latestResults) {
+      latestResults.locationName = locationName;
+    }
+  } catch (error) {
+    console.error("Error initializing Leaflet map:", error.message);
+    alert("Failed to load map. Check console (F12) for details. Ensure internet connection is active.");
   }
-  map = L.map('map').setView([latitude, longitude], 10);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    maxZoom: 19,
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-  }).addTo(map);
-  const locationName = await getLocationName(latitude, longitude);
-  L.marker([latitude, longitude]).addTo(map)
-    .bindPopup(`Calculated Location: ${locationName}`)
-    .openPopup();
-  document.getElementById("locationName").innerHTML = `
-    <strong>Location Name: ${locationName}</strong>
-    <span class="result-description">Location name based on coordinates</span>
-  `;
 }
 
 function calculateCoordinates() {
@@ -99,6 +107,21 @@ function calculateCoordinates() {
     return;
   }
 
+  // Store results for download
+  latestResults = {
+    stickHeight,
+    shadowLength,
+    date: dateInput,
+    solarNoon: timeInput,
+    utcOffset,
+    isZeroShadowDay,
+    solarElevation: solarElevation.toFixed(2),
+    declination: declination.toFixed(2),
+    latitude: latitude.toFixed(4),
+    longitude: longitude.toFixed(4),
+    locationName: "Fetching..."
+  };
+
   document.getElementById("zeroShadowDay").innerHTML = `
     <strong>Zero Shadow Day: ${isZeroShadowDay ? 'Yes' : 'No'}</strong>
     <span class="result-description">${isZeroShadowDay ? 'Sun is directly overhead (shadow length = 0)' : 'Not a Zero Shadow Day'}</span>
@@ -121,6 +144,186 @@ function calculateCoordinates() {
   `;
 
   initializeMap(latitude, longitude);
+}
+
+async function downloadPDF() {
+  if (!latestResults) {
+    alert("Please calculate coordinates first.");
+    return;
+  }
+
+  const shadowData = [];
+  const timeInputs = document.querySelectorAll(".time-input");
+  const shadowInputs = document.querySelectorAll(".shadow-input");
+  for (let i = 0; i < timeInputs.length; i++) {
+    const time = timeInputs[i].value;
+    const shadow = parseFloat(shadowInputs[i].value);
+    if (time && !isNaN(shadow)) {
+      shadowData.push({ time, shadow });
+    }
+  }
+
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+  let y = 20;
+
+  // A4 page height is ~297 mm, graph is 85 mm tall, leave margin
+  const pageHeight = 297;
+  const graphHeight = 85;
+  const marginBottom = 20;
+
+  // Header
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(16);
+  doc.text("Shadow-based Latitude & Longitude Finder Report", 105, y, { align: "center" });
+  y += 15;
+
+  // Calculation Results
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(14);
+  doc.text("Calculation Results", 20, y);
+  y += 10;
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(10);
+  const results = [
+    `Stick Height: ${latestResults.stickHeight} cm`,
+    `Shadow Length: ${latestResults.shadowLength} cm`,
+    `Date: ${latestResults.date}`,
+    `Local Solar Noon Time: ${latestResults.solarNoon}`,
+    `UTC Offset: ${latestResults.utcOffset} hours`,
+    `Zero Shadow Day: ${latestResults.isZeroShadowDay ? 'Yes' : 'No'}`,
+    `Solar Elevation Angle: ${latestResults.solarElevation}°`,
+    `Solar Declination: ${latestResults.declination}°`,
+    `Latitude: ${latestResults.latitude}°`,
+    `Longitude: ${latestResults.longitude}°`,
+    `Location Name: ${latestResults.locationName}`
+  ];
+  results.forEach(line => {
+    if (y > pageHeight - marginBottom) {
+      doc.addPage();
+      y = 20;
+    }
+    doc.text(line, 20, y);
+    y += 8;
+  });
+
+  // Shadow Measurements
+  y += 5;
+  if (y > pageHeight - marginBottom) {
+    doc.addPage();
+    y = 20;
+  }
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(14);
+  doc.text("Shadow Measurements", 20, y);
+  y += 10;
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(10);
+  if (shadowData.length > 0) {
+    doc.text("Time\tShadow Length (cm)", 20, y);
+    y += 8;
+    shadowData.forEach(d => {
+      if (y > pageHeight - marginBottom) {
+        doc.addPage();
+        y = 20;
+      }
+      doc.text(`${d.time}\t${d.shadow}`, 20, y);
+      y += 8;
+    });
+  } else {
+    if (y > pageHeight - marginBottom) {
+      doc.addPage();
+      y = 20;
+    }
+    doc.text("No shadow measurements provided.", 20, y);
+    y += 8;
+  }
+
+  // Graph
+  if (window.shadowChart) {
+    y += 5;
+    if (y > pageHeight - graphHeight - marginBottom) {
+      doc.addPage();
+      y = 20;
+    }
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(14);
+    doc.text("Shadow Length vs. Time Graph", 20, y);
+    y += 10;
+    try {
+      const canvas = document.getElementById("realDataChart");
+      const imgData = await html2canvas(canvas).then(canvas => canvas.toDataURL('image/png'));
+      doc.addImage(imgData, 'PNG', 20, y, 170, 85); // Scale to fit A4
+      y += 90;
+    } catch (error) {
+      console.error("Error capturing graph:", error);
+      if (y > pageHeight - marginBottom) {
+        doc.addPage();
+        y = 20;
+      }
+      doc.text("Unable to include graph due to an error.", 20, y);
+      y += 8;
+    }
+  } else {
+    if (y > pageHeight - marginBottom) {
+      doc.addPage();
+      y = 20;
+    }
+    doc.text("No graph available. Please click 'Plot Graph' first.", 20, y);
+    y += 8;
+  }
+
+  // Save PDF
+  doc.save("ShadowFinder_Report.pdf");
+}
+
+function downloadText() {
+  if (!latestResults) {
+    alert("Please calculate coordinates first.");
+    return;
+  }
+
+  const shadowData = [];
+  const timeInputs = document.querySelectorAll(".time-input");
+  const shadowInputs = document.querySelectorAll(".shadow-input");
+  for (let i = 0; i < timeInputs.length; i++) {
+    const time = timeInputs[i].value;
+    const shadow = parseFloat(shadowInputs[i].value);
+    if (time && !isNaN(shadow)) {
+      shadowData.push({ time, shadow });
+    }
+  }
+
+  // Generating text content
+  let textContent = "Shadow-based Latitude & Longitude Finder Report\n\n";
+  textContent += "Calculation Results\n";
+  textContent += `Stick Height: ${latestResults.stickHeight} cm\n`;
+  textContent += `Shadow Length: ${latestResults.shadowLength} cm\n`;
+  textContent += `Date: ${latestResults.date}\n`;
+  textContent += `Local Solar Noon Time: ${latestResults.solarNoon}\n`;
+  textContent += `UTC Offset: ${latestResults.utcOffset} hours\n`;
+  textContent += `Zero Shadow Day: ${latestResults.isZeroShadowDay ? 'Yes' : 'No'}\n`;
+  textContent += `Solar Elevation Angle: ${latestResults.solarElevation}°\n`;
+  textContent += `Solar Declination: ${latestResults.declination}°\n`;
+  textContent += `Latitude: ${latestResults.latitude}°\n`;
+  textContent += `Longitude: ${latestResults.longitude}°\n`;
+  textContent += `Location Name: ${latestResults.locationName}\n`;
+  textContent += "\nShadow Measurements\n";
+  if (shadowData.length > 0) {
+    textContent += "Time\tShadow Length (cm)\n";
+    textContent += shadowData.map(d => `${d.time}\t${d.shadow}`).join('\n');
+  } else {
+    textContent += "No shadow measurements provided.\n";
+  }
+
+  // Trigger text download
+  const blob = new Blob([textContent], { type: 'text/plain' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'ShadowFinder_Report.txt';
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
 function showAbout() {
@@ -160,6 +363,11 @@ function plotRealGraph() {
     }
   }
 
+  if (labels.length === 0) {
+    alert("Please enter at least one valid time and shadow length to plot the graph.");
+    return;
+  }
+
   // Sort data by time for a smoother graph
   const timeDataPairs = labels.map((time, index) => ({ time, shadow: data[index] }));
   timeDataPairs.sort((a, b) => a.time.localeCompare(b.time));
@@ -167,6 +375,12 @@ function plotRealGraph() {
   const sortedData = timeDataPairs.map(pair => pair.shadow);
 
   const ctx = document.getElementById("realDataChart").getContext("2d");
+
+  if (!ctx) {
+    console.error("Canvas element 'realDataChart' not found.");
+    alert("Error: Graph canvas not found. Check console (F12) for details.");
+    return;
+  }
 
   if (window.shadowChart) {
     window.shadowChart.destroy();

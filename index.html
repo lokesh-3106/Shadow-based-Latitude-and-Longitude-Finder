@@ -5,9 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Shadow-based Latitude & Longitude Finder</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&family=Roboto:wght@400;500&display=swap" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
@@ -65,9 +66,8 @@
     </div>
   </div>
 
-  <p class="map-caption">Location based on Latitude and Longitude</p>
+  <p class="map-caption">Location based on coordinates</p>
   <div id="map"></div>
-  
 
   <h2>📏 Enter Shadow Lengths with Custom Time Intervals</h2>
   <div id="input-container">
@@ -78,12 +78,13 @@
   </div>
   <button onclick="addRow()">+ Add Row</button>
   <button onclick="plotRealGraph()">📈 Plot Graph</button>
-  <canvas id="realDataChart" width="600" height="300"></canvas>
+  <button onclick="downloadPDF()">📄 Download PDF</button>
+  <canvas id="realDataChart"></canvas>
 
   <footer>
     <p>Created by Lokeshwaran &copy; 2025. All rights reserved.</p>
     <p>Contact: <a href="mailto:pro.lokesh3103@gmail.com">pro.lokesh3103@gmail.com</a> | 
-       <a href="https://lokesh-3106.github.io/Shadow-based-Latitude-and-Longitude-Finder/">GitHub</a> | 
+       <a href="https://github.com/yourusername">GitHub</a> | 
        <a href="https://www.linkedin.com/in/lokeshwaran31">LinkedIn</a></p>
     <p>Version 1.0, August 2025</p>
   </footer>
@@ -109,6 +110,8 @@
     </div>
   </div>
 
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="script.js"></script>
 </body>
 </html>
